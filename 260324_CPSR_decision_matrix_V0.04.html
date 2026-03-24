@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>화장품 안전성 평가 시험 항목 의사결정 매트릭스</title>
+</head>
+<body>
+<script>
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║                                                                          ║
+   ║   ██████╗  █████╗ ████████╗ █████╗     ██████╗ ███╗   ██╗██╗  ██╗   ║
+   ║   ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗   ██╔═══██╗████╗  ██║██║  ██║   ║
+   ║   ██║  ██║███████║   ██║   ███████║   ██║   ██║██╔██╗ ██║██║  ██║   ║
+   ║   ██║  ██║██╔══██║   ██║   ██╔══██║   ██║   ██║██║╚██╗██║██║  ██║   ║
+   ║   ██████╔╝██║  ██║   ██║   ██║  ██║   ╚██████╔╝██║ ╚████║╚██████╔╝  ║
+   ║   ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝    ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝   ║
+   ║                                                                          ║
+   ║   수정은 이 블록 안에서만 하세요.  코드는 절대 건드리지 않아도 됩니다.  ║
+   ╚══════════════════════════════════════════════════════════════════════════╝
+
+   ─────────────────────────────────────────────────────────────────────────
+   ★ 수정 방법
+   ─────────────────────────────────────────────────────────────────────────
+   1. 메모장 / VS Code / GitHub 웹 에디터 어디서든 이 파일을 열기
+   2. 이 DATA ONLY 블록 안의 내용만 수정
+   3. 저장 → 브라우저에서 새로고침 → 즉시 반영
+
+   ─────────────────────────────────────────────────────────────────────────
+   ★ 자주 하는 수정 예시
+   ─────────────────────────────────────────────────────────────────────────
+
+   [A] 시험 비용 바꾸기
+       TEST_DB.base 또는 TEST_DB.cond 에서 해당 항목의 price 값 변경
+       예: price: 80  →  price: 100
+
+   [B] 시험 소요일 바꾸기
+       동일하게 days 값 변경
+       예: days: 14  →  days: 21
+
+   [C] 기존 시험 항목 근거 문구 수정
+       rationale 또는 legalBasis 문자열 수정
+       ※ 문자열 안에 작은따옴표(') 쓸 때는 앞에 \ 추가: it\'s
+
+   [D] 새 시험 항목 추가
+       TEST_DB.base / .cond / .doc 배열에 아래 형식으로 한 줄 추가:
+       { id: '고유_id', name: '시험명', lab: 'Wet Lab', price: 0, days: 14,
+         rationale: '왜 필요한가',
+         legalBasis: '근거 법령',
+         trigger: '' },   ← cond 항목만 trigger 필요, base/doc는 불필요
+
+   [E] 시험 항목 삭제
+       해당 항목 { } 블록 전체 삭제 (쉼표도 함께)
+
+   [F] 좌측 폼 옵션 추가 (예: 제형에 "무스" 추가)
+       PROFILE_FIELDS에서 해당 id의 options 배열에 한 줄 추가:
+       { val: 'f_mousse', label: '무스' },
+       ※ val은 영문+숫자만, 다른 val과 중복 금지
+
+   [G] 좌측 폼 옵션 삭제
+       해당 options 항목 { } 삭제
+
+   [H] 새 조건 규칙 추가 (A 특성 선택 시 B 시험 추가)
+       CONDITIONS 배열에 아래 형식 추가:
+       { triggers: ['트리거val'], testIds: ['시험id'], description: '설명' },
+       ※ triggers에 여러 개 넣으면 모두 선택됐을 때만 발동(AND 조건)
+
+   ─────────────────────────────────────────────────────────────────────────
+*/
+
+// ┌─────────────────────────────────────────────────────────────────────────┐
+// │  SECTION 1.  좌측 제품 특성 입력 폼                                      │
+// │  수정: 각 options 배열에 항목 추가/삭제                                   │
+// │  규칙: val은 영문+숫자+밑줄만, 전체에서 중복 없어야 함                     │
+// └─────────────────────────────────────────────────────────────────────────┘
+const PROFILE_FIELDS = [
+  {
+    id: 'costype',
+    label: '화장품 유형',
+    note: '근거: 화장품법 시행규칙 [별표3] 화장품 유형 분류',
+    req: true,
+    multi: true,   // true = 복수 선택 가능 / false = 단일 선택
+    options: [
+      { val: 'ct_infant',    label: '영유아용' },
+      { val: 'ct_bath',      label: '목욕용' },
+      { val: 'ct_cleanse',   label: '인체 세정용' },
+      { val: 'ct_eye',       label: '눈 화장용' },
+      { val: 'ct_fragrance', label: '방향용' },
+      { val: 'ct_haircolor', label: '두발 염색용' },
+      { val: 'ct_makeup',    label: '색조 화장용' },
+      { val: 'ct_hair',      label: '두발용' },
+      { val: 'ct_nail',      label: '손발톱용' },
+      { val: 'ct_shave',     label: '면도용' },
+      { val: 'ct_base',      label: '기초화장용' },
+      { val: 'ct_deo',       label: '체취 방지용' },
+      { val: 'ct_depi',      label: '제모 제거용' },
+    ]
+  },
+  {
+    id: 'form',
+    label: '제형',
+    note: '근거: 화장품 안정성시험 가이드라인 — 가혹시험 종류 결정',
+    req: true,
+    multi: false,
+    options: [
+      { val: 'f_cream',   label: '크림제' },
+      { val: 'f_lotion',  label: '로션제' },
+      { val: 'f_aerosol', label: '에어로졸제' },
+      { val: 'f_liquid',  label: '액제' },
+      { val: 'f_mask',    label: '침적마스크제' },
+      { val: 'f_gel',     label: '겔제' },
+      { val: 'f_powder',  label: '분말제' },
+      { val: 'f_solid',   label: '고형제' },
+    ]
+  },
+  {
+    id: 'residue',
+    label: '잔류 특성',
+    note: '근거: 가이드라인(안) 2.1.6 — SED 계산 시 잔류지수(RF) 결정 (위해평가 가이드라인 붙임5)',
+    req: true,
+    multi: false,
+    options: [
+      { val: 'r_leaveon',  label: 'Leave-on  (씻어내지 않음)' },
+      { val: 'r_rinseoff', label: 'Rinse-off  (씻어냄, RF 10% 적용 가능)' },
+    ]
+  },
+  {
+    id: 'site',
+    label: '주요 사용 부위',
+    note: '근거: 가이드라인(안) 2.1.6 — 피부면적(SSA) 및 추가 시험(안점막·경구노출 등) 결정',
+    req: true,
+    multi: true,
+    options: [
+      { val: 's_face',      label: '얼굴' },
+      { val: 's_eye',       label: '눈 주변/눈꺼풀' },
+      { val: 's_lip',       label: '입술' },
+      { val: 's_hair',      label: '모발' },
+      { val: 's_body_part', label: '바디 (일부)' },
+      { val: 's_body_all',  label: '전신' },
+      { val: 's_hand',      label: '손' },
+      { val: 's_foot',      label: '발' },
+      { val: 's_nail',      label: '손발톱' },
+    ]
+  },
+  {
+    id: 'target',
+    label: '사용 대상',
+    note: '근거: 가이드라인(안) 2.1.6 5) — 영유아는 별도 노출량 보정·TTC 검토 필수 (SCCS/1628/21)',
+    req: true,
+    multi: true,
+    options: [
+      { val: 't_infant',    label: '영유아' },
+      { val: 't_child',     label: '어린이' },
+      { val: 't_teen',      label: '청소년' },
+      { val: 't_adult',     label: '성인' },
+      { val: 't_all',       label: '전연령' },
+      { val: 't_sensitive', label: '민감성' },
+      { val: 't_condition', label: '특정 질환/피부상태' },
+    ]
+  },
+  {
+    id: 'ingr',
+    label: '특수 성분 포함 여부',
+    note: '근거: 별표2 규제 성분 및 추가 시험 트리거 — 각 성분별 별도 평가 필요',
+    req: false,
+    multi: true,
+    options: [
+      { val: 'i_uv',    label: '자외선차단제 성분' },
+      { val: 'i_nano',  label: '나노 원료' },
+      { val: 'i_new',   label: '신규/미승인 원료' },
+      { val: 'i_frag',  label: '착향제 (복합향료)' },
+      { val: 'i_aha',   label: 'AHA/레티놀 등 활성 성분' },
+      { val: 'i_color', label: '색소 (별표2 해당)' },
+    ]
+  },
+];
+
+
+// ┌─────────────────────────────────────────────────────────────────────────┐
+// │  SECTION 2.  시험 항목 데이터베이스                                       │
+// │  base = 모든 화장품 필수 / cond = 조건부 추가 / doc = 문서 작성           │
+// │  price 단위: 만원  /  days 단위: 일(day)  /  0 = 자체 수행               │
+// └─────────────────────────────────────────────────────────────────────────┘
+let TEST_DB = {
+
+  // ── 기본 필수 시험 ── 어떤 제품이든 항상 수행 ────────────────────────────
+  base: [
+    {
+      id: 'stab_long',
+      name: '장기보존시험',
+      lab: 'Wet Lab',
+      price: 300,
+      days: 365,
+      rationale: '화장품의 보관 조건(온도·습도)에서 물리·화학적·미생물학적 안정성을 확인하고, 사용기한 설정의 과학적 근거를 확보한다.',
+      legalBasis: '「화장품 안정성시험 가이드라인」(MFDS) / 「화장품법」 제10조(사용기한 표시 의무)',
+    },
+    {
+      id: 'stab_acc',
+      name: '가속시험',
+      lab: 'Wet Lab',
+      price: 200,
+      days: 180,
+      rationale: '단기간(6개월)에 장기 보관 효과를 예측한다. 조건: 실온보관 제품 40±2℃/75±5%RH, 냉장보관 제품 25±2℃/60±5%RH.',
+      legalBasis: '「화장품 안정성시험 가이드라인」(MFDS)',
+    },
+    {
+      id: 'micro_limit',
+      name: '미생물한도시험',
+      lab: 'Wet Lab',
+      price: 50,
+      days: 14,
+      rationale: '총호기성생균수(기타 화장품 1,000개/g 이하), 대장균·녹농균·황색포도상구균 불검출 확인. 이 법적 기준을 준수했다는 유일한 증거 자료.',
+      legalBasis: '「화장품 안전기준 등에 관한 규정」(제2025-63호) 제6조 제4항 / [별표4] 유통화장품 안전관리 시험방법 11항',
+    },
+    {
+      id: 'pet',
+      name: '보존력시험 (PET)',
+      lab: 'Wet Lab',
+      price: 80,
+      days: 28,
+      rationale: '다회 개봉 시 소비자가 제품에 미생물을 오염시킬 수 있으므로, 보존 시스템의 유효성을 평가한다. 접종 후 4주 관찰. 알코올 20% 초과·일회용 등은 ISO 29621 근거로 생략 가능.',
+      legalBasis: '「화장품 보존력 시험법 가이드라인」(MFDS) / 가이드라인(안) 2.1.3 / ISO 29621(생략 근거 기준)',
+    },
+    {
+      id: 'skin_irrit',
+      name: '피부자극성시험 (RhE)',
+      lab: 'Wet Lab',
+      price: 80,
+      days: 14,
+      rationale: '화장품은 피부에 직접 반복 접촉하므로, 자극성이 없음을 입증해야 한다. 재건된 인체표피(EpiDerm 등) 모델을 이용한 동물대체시험 적용.',
+      legalBasis: 'OECD TG 439 (RhE Test Method) / 가이드라인(안) 2.1.8 (c)항 / 「화장품법」 제15조의2(동물실험 금지)',
+    },
+    {
+      id: 'sensitiz',
+      name: '피부감작성시험 (h-CLAT)',
+      lab: 'Wet Lab',
+      price: 120,
+      days: 21,
+      rationale: '화장품에서 가장 빈번하게 보고되는 이상반응인 알레르기성 접촉피부염의 가능성을 평가한다.',
+      legalBasis: 'OECD TG 442E (h-CLAT) / 가이드라인(안) 2.1.8 (c)항',
+    },
+    {
+      id: 'geno_qsar',
+      name: '유전독성 평가 (QSAR/in silico)',
+      lab: 'Dry Lab',
+      price: 60,
+      days: 14,
+      rationale: '동물실험 금지로 in silico 방법(Derek Nexus, Toxtree 등)을 우선 적용한다. 유전독성 우려 성분을 사전 선별하여 추가 시험 또는 처방 변경 여부를 결정하는 출발점.',
+      legalBasis: 'OECD TG 442C–E(대안시험) / 가이드라인(안) 2.1.8 (e)항 / 「화장품법」 제15조의2',
+    },
+    {
+      id: 'mos_calc',
+      name: 'MoS 계산 (전성분)',
+      lab: 'Dry Lab',
+      price: 0,
+      days: 3,
+      rationale: 'MoS = PODsys(NOAEL) / SED(전신노출량) ≥ 100 충족 여부 확인. 안전성 평가의 정량적 결론. 「화장품 안전기준 등에 관한 규정」 [별표2] 한도 이내 성분은 생략 가능하나 생략 근거 기재 필수.',
+      legalBasis: '가이드라인(안) 2.1.7 / 「화장품 위해평가 가이드라인」 2-2-4(위해도 결정) / 「화장품 안전기준 등에 관한 규정」 [별표2]',
+    },
+    {
+      id: 'reg_check',
+      name: '원료 규제 적합성 확인',
+      lab: 'Dry Lab',
+      price: 0,
+      days: 1,
+      rationale: '사용 금지 원료([별표1]) 해당 여부, 사용 제한 원료([별표2]) 한도 초과 여부, 알레르기 유발 착향제([별표3]) 표시 의무 여부를 확인한다. 이것이 2.1.1 작성의 전제 조건.',
+      legalBasis: '「화장품 안전기준 등에 관한 규정」(제2025-63호) [별표1][별표2] / 「화장품 사용할 때의 주의사항 및 알레르기 유발성분 표시에 관한 규정」 [별표3]',
+    },
+    {
+      id: 'tox_lit',
+      name: '전성분 독성 문헌조사',
+      lab: 'Dry Lab',
+      price: 0,
+      days: 5,
+      rationale: '8개 독성 종말점(단회투여·반복투여·피부독성·생식발생·유전·발암·광독성·기타)에 대한 NOAEL 및 독성 프로파일을 확보한다. MoS 계산의 PODsys(전신독성기준값) 결정에 필수.',
+      legalBasis: '가이드라인(안) 2.1.8 전항목 / 「화장품 위해평가 가이드라인」 2-2-2(위험성 확인·결정)',
+    },
+    {
+      id: 'container',
+      name: '포장재 적합성 평가',
+      lab: 'Wet Lab',
+      price: 50,
+      days: 30,
+      rationale: '내용물에 의한 포장재 변화(compatibility) 및 포장재에서 내용물로의 불순물 이행(migration) 가능성 확인. 프탈레이트류 등 비의도적 유래물질 허용한도 준수 증명.',
+      legalBasis: '가이드라인(안) 2.1.4 / 「화장품 안전기준 등에 관한 규정」 제6조 제2항(프탈레이트류 총 100µg/g 이하 등 비의도적 유래물질 기준)',
+    },
+  ],
+
+  // ── 조건부 추가 시험 ── 특정 특성이 선택됐을 때만 추가 ─────────────────
+  // trigger: 발동 조건이 되는 val 값 (CONDITIONS 배열에서 매핑, 여기선 참고용)
+  cond: [
+    {
+      id: 'eye_irrit',
+      name: '안점막자극성시험 (BCOP/ICE/RhCE)',
+      lab: 'Wet Lab',
+      price: 100,
+      days: 14,
+      rationale: '눈 주위 또는 눈화장용 제품은 각막·결막에 직접 닿을 수 있어 안점막 자극을 별도로 평가해야 한다. 눈꺼풀에 적용하는 제품도 포함.',
+      legalBasis: 'OECD TG 437(BCOP) / TG 438(ICE) / TG 491(STE) / TG 492(RhCE) / 가이드라인(안) 2.1.8 (c)항',
+      trigger: 's_eye 또는 ct_eye 선택 시',
+    },
+    {
+      id: 'oral_exp',
+      name: '경구 노출 시나리오 산출',
+      lab: 'Dry Lab',
+      price: 0,
+      days: 1,
+      rationale: '입술 제품은 소비자가 무의식 중 일정량을 섭취한다. 경구 노출 경로를 노출 시나리오에 포함하고 경구 SED를 별도 계산해야 한다.',
+      legalBasis: '가이드라인(안) 2.1.6 5) / 「화장품 위해평가 가이드라인」 2-2-3(경구 노출 시나리오)',
+      trigger: 's_lip 선택 시',
+    },
+    {
+      id: 'inhal',
+      name: '흡입독성 평가 (SEDinh — 1-box/2-box 모델)',
+      lab: 'Dry Lab',
+      price: 80,
+      days: 14,
+      rationale: '에어로졸제는 미세입자가 기도로 흡입될 수 있어 흡입 노출량(SEDinh)을 별도 계산해야 한다. 한국인 욕실 부피 9.3m³, 호흡률 0.01m³/min 적용.',
+      legalBasis: '가이드라인(안) 2.1.6 / 「화장품 위해평가 가이드라인」 붙임 7(흡입 노출평가 방법)',
+      trigger: 'f_aerosol 선택 시',
+    },
+    {
+      id: 'phototox',
+      name: '광독성시험 (3T3 NRU)',
+      lab: 'Wet Lab',
+      price: 90,
+      days: 14,
+      rationale: '자외선 흡수 파장을 가진 성분은 UV 조사 시 세포독성이 증가(광독성)할 수 있어 별도 평가가 필요하다.',
+      legalBasis: 'OECD TG 432 (3T3 NRU Phototoxicity Test) / 가이드라인(안) 2.1.8 (g)항',
+      trigger: 'i_uv 선택 시',
+    },
+    {
+      id: 'spf_pa',
+      name: '자외선차단 효과시험 (SPF/PA)',
+      lab: 'Wet Lab',
+      price: 150,
+      days: 30,
+      rationale: '자외선차단제 성분을 포함하면 기능성화장품에 해당하여 SPF·PA 수치를 측정·표시해야 한다.',
+      legalBasis: '「화장품법」 제4조(기능성화장품 심사) / 「기능성화장품 기준 및 시험방법」',
+      trigger: 'i_uv 선택 시',
+    },
+    {
+      id: 'nano_char',
+      name: '나노 원료 특성 분석',
+      lab: 'Wet Lab',
+      price: 200,
+      days: 30,
+      rationale: '나노 입자는 일반 원료와 피부 침투 경로·독성 메커니즘이 다를 수 있어 입자 크기 분포, 표면 코팅 상태, 순도 등을 별도로 분석해야 한다.',
+      legalBasis: '「화장품 안전기준 등에 관한 규정」 [별표2] 비고(나노 원료 조건 명시) / 가이드라인(안) 2.1.10',
+      trigger: 'i_nano 선택 시',
+    },
+    {
+      id: 'new_tox',
+      name: '신규 원료 독성시험 풀세트',
+      lab: 'Wet Lab',
+      price: 500,
+      days: 90,
+      rationale: '기존 안전성 자료가 없는 신규·미승인 원료는 단회투여독성, 반복투여독성, 피부독성, 유전독성 등을 직접 시험으로 확인해야 한다.',
+      legalBasis: '가이드라인(안) 2.1.8 (a)–(g)항 전체 / 「화장품법」 제8조 제3항(원료 위해평가 의무)',
+      trigger: 'i_new 선택 시',
+    },
+    {
+      id: 'fragrance_qra',
+      name: '향료 감작성 QRA (NESIL / AEL / CEL 산출)',
+      lab: 'Dry Lab',
+      price: 50,
+      days: 3,
+      rationale: '착향제에 감작성 성분이 포함된 경우, NESIL(최대무감작유도용량) → AEL(허용노출량 = NESIL/SAF) → CEL(소비자노출량) 비교 QRA를 수행해야 한다. AEL ≥ CEL이면 허용.',
+      legalBasis: '「화장품 위해평가 가이드라인」 붙임 8(피부감작성 QRA 및 예시) / IFRA 가이드라인',
+      trigger: 'i_frag 선택 시',
+    },
+    {
+      id: 'aha_irrit',
+      name: '고농도 활성 성분 추가 자극 평가',
+      lab: 'Wet Lab',
+      price: 80,
+      days: 14,
+      rationale: 'AHA(글리콜산·락트산 등)·레티놀 등은 고농도에서 피부 자극·홍반 가능성이 높아, 일반 피부자극성 시험에 더하여 추가 자극 평가가 권고된다.',
+      legalBasis: 'SCCS 관련 의견서(성분별) / 가이드라인(안) 2.1.8 / 「화장품 안전기준 등에 관한 규정」 [별표2] 관련 성분 한도',
+      trigger: 'i_aha 선택 시',
+    },
+    {
+      id: 'infant_safety',
+      name: '영유아 추가 안전평가 (노출량 보정 + TTC 검토)',
+      lab: 'Dry Lab',
+      price: 0,
+      days: 3,
+      rationale: '영유아는 체중 대비 피부면적 비율이 성인보다 최대 2.3배 높고, 간 대사 능력이 미숙하여 동일 노출량에서 전신 노출량이 훨씬 크다. SED 계산 시 연령별 체중 보정 및 TTC 적용 가능 여부를 별도 검토해야 한다.',
+      legalBasis: '「화장품법」 제4조의3(영유아 안전성 자료 의무) / SCCS/1628/21 영유아 기준 / 가이드라인(안) 2.1.6 5)',
+      trigger: 't_infant 또는 ct_infant 선택 시',
+    },
+    {
+      id: 'infant_clinical',
+      name: '저자극성 인체적용시험 (영유아)',
+      lab: 'Wet Lab',
+      price: 300,
+      days: 60,
+      rationale: '영유아용으로 표방하는 제품은 임상 첩포시험 등을 통해 저자극성을 입증하는 것이 규정상 권고된다.',
+      legalBasis: '「화장품법」 제4조의3 / 「영유아 또는 어린이 사용 화장품 안전성 자료의 작성·보관에 관한 규정」',
+      trigger: 't_infant 또는 ct_infant 선택 시',
+    },
+    {
+      id: 'micro_strict',
+      name: '미생물한도 강화 기준 적용 (500개/g 이하)',
+      lab: 'Wet Lab',
+      price: 50,
+      days: 14,
+      rationale: '영유아용 및 눈화장용 제품은 기타 화장품(1,000개/g)보다 엄격한 기준(총호기성생균수 500개/g 이하)이 법적으로 적용된다.',
+      legalBasis: '「화장품 안전기준 등에 관한 규정」 제6조 제4항 1호 (영유아용·눈화장용 500개/g 이하)',
+      trigger: 't_infant, ct_infant, ct_eye 선택 시',
+    },
+    {
+      id: 'child_exposure',
+      name: '어린이 노출 시나리오 보정',
+      lab: 'Dry Lab',
+      price: 0,
+      days: 1,
+      rationale: '어린이는 성인보다 체중이 가벼워 SED 계산 시 연령별 체중 보정이 필요하다. 손-입 접촉을 통한 경구 노출 시나리오도 추가 고려.',
+      legalBasis: '「화장품 위해평가 가이드라인」 2-2-3 4)항 / SCCS/1628/21',
+      trigger: 't_child 선택 시',
+    },
+    {
+      id: 'sensitive_patch',
+      name: '저자극성 인체 첩포시험',
+      lab: 'Wet Lab',
+      price: 120,
+      days: 21,
+      rationale: '민감성 피부 대상 또는 저자극성을 표방할 경우, 실제 자극 없음을 인체시험으로 증명해야 표시·광고 실증 자료로 활용 가능하다.',
+      legalBasis: '「화장품 표시·광고 실증에 관한 규정」 / 가이드라인(안) 2.1.10',
+      trigger: 't_sensitive 선택 시',
+    },
+    {
+      id: 'condition_test',
+      name: '특정 피부상태 대상 추가 자극 평가',
+      lab: 'Wet Lab',
+      price: 120,
+      days: 21,
+      rationale: '아토피·건선 등 특정 피부상태를 가진 소비자를 대상으로 표방할 경우, 해당 피부 특성에 맞춘 자극·안전성 평가가 필요하다.',
+      legalBasis: '가이드라인(안) 2.1.10(제품에 대한 기타 정보) / SCCS Notes of Guidance 특수 집단 관련 항목',
+      trigger: 't_condition 선택 시',
+    },
+    {
+      id: 'stab_harsh',
+      name: '가혹시험 (동결-해동 / 광안정성)',
+      lab: 'Wet Lab',
+      price: 80,
+      days: 14,
+      rationale: '크림·로션 유화 제형은 동결-해동 시 유화 불안정이 발생할 수 있다. 빛에 민감한 성분 포함 제품은 광안정성을 별도 확인해야 한다.',
+      legalBasis: '「화장품 안정성시험 가이드라인」 가혹시험 가. 온도편차 / 다. 광안정성',
+      trigger: 'f_cream 또는 f_lotion 선택 시',
+    },
+    {
+      id: 'haircolor_tox',
+      name: '두발 염색 성분 독성 평가 (산화염료 등)',
+      lab: 'Wet Lab',
+      price: 150,
+      days: 30,
+      rationale: 'p-페닐렌디아민 등 산화염료는 [별표2]에서 사용 한도가 규정되어 있으며 감작성·세포독성 우려가 높아 별도 독성 평가가 필요하다.',
+      legalBasis: '「화장품 안전기준 등에 관한 규정」 [별표2] 염모제 성분 / SCCS 산화염모제 관련 의견서',
+      trigger: 'ct_haircolor 선택 시',
+    },
+    {
+      id: 'depi_skin',
+      name: '제모 성분 피부 자극 특별 평가',
+      lab: 'Wet Lab',
+      price: 80,
+      days: 14,
+      rationale: '티오글리콜산 등 제모 성분은 고 알칼리 제형으로 피부 부식·자극 가능성이 높아 일반 자극 시험 외 추가 평가가 필요하다.',
+      legalBasis: '「화장품 안전기준 등에 관한 규정」 [별표2] 기타 성분(티오글리콜산류)',
+      trigger: 'ct_depi 선택 시',
+    },
+  ],
+
+  // ── 문서 작성 항목 ── 시험 결과 기반으로 보고서 각 섹션 작성 ────────────
+  doc: [
+    {
+      id: 'doc_21_1',
+      name: '2.1.1 정량·정성 구성 작성',
+      lab: '문서작성',
+      price: 0,
+      days: 1,
+      rationale: '처방 전성분 INCI명·CAS번호·배합목적·실제 성분 농도(= 배합비 × 원료 내 함량 / 100) 계산 포함.',
+      legalBasis: '가이드라인(안) 2.1.1',
+    },
+    {
+      id: 'doc_21_2',
+      name: '2.1.2 물리화학적 특성 및 안정성 작성',
+      lab: '문서작성',
+      price: 0,
+      days: 2,
+      rationale: '제품 규격(pH·점도 등), 원료별 분자량·LogP·피부흡수율 등 물리화학적 데이터, 안정성 시험 결과 및 사용기한 설정 근거 기재.',
+      legalBasis: '가이드라인(안) 2.1.2',
+    },
+    {
+      id: 'doc_21_567',
+      name: '2.1.5~2.1.7 노출 시나리오 및 MoS 보고서 작성',
+      lab: '문서작성',
+      price: 0,
+      days: 3,
+      rationale: '사용 방법 기재, 1일 사용량·피부면적·SED 계산식·성분별 MoS 산출 결과표 작성. Rinse-off 잔류지수(RF) 적용 여부 명시.',
+      legalBasis: '가이드라인(안) 2.1.5, 2.1.6, 2.1.7',
+    },
+    {
+      id: 'doc_21_8',
+      name: '2.1.8 독성 정보 기반 위해 판단 보고서 작성',
+      lab: '문서작성',
+      price: 0,
+      days: 5,
+      rationale: '각 성분별 8개 독성 종말점 데이터 수집·정리·기술. SCCS·ECHA·IARC·WHO/IPCS 등 출처 포함. Read-across·QSAR 활용 시 근거 명시.',
+      legalBasis: '가이드라인(안) 2.1.8',
+    },
+    {
+      id: 'doc_22',
+      name: '안전성 평가 결론 작성 (2.2 전체)',
+      lab: '문서작성',
+      price: 0,
+      days: 2,
+      rationale: '위해판단 종합, 라벨 주의사항 도출(시행규칙 [별표3] 준수 여부 확인), 안전성 평가자 서명 및 자격 증명 포함.',
+      legalBasis: '가이드라인(안) 2.2 전체 / 「화장품법」 제4조의2(안전성 평가자 검토 의무)',
+    },
+  ],
+};
+
+
+// ┌─────────────────────────────────────────────────────────────────────────┐
+// │  SECTION 3.  조건 규칙                                                   │
+// │  "이 특성(triggers)이 선택되면 이 시험(testIds)을 추가한다"              │
+// │  triggers: 여러 개 넣으면 모두 선택돼야 발동 (AND 조건)                  │
+// │  testIds: 추가될 시험의 id (TEST_DB.cond의 id와 일치해야 함)             │
+// └─────────────────────────────────────────────────────────────────────────┘
+let CONDITIONS = [
+  // 사용 부위 조건
+  { triggers: ['s_eye'],       testIds: ['eye_irrit'],                         description: '눈 주변/눈꺼풀 사용 시' },
+  { triggers: ['s_lip'],       testIds: ['oral_exp'],                          description: '입술 사용 시' },
+  // 화장품 유형 조건
+  { triggers: ['ct_eye'],      testIds: ['eye_irrit', 'micro_strict'],         description: '눈 화장용 유형 선택 시' },
+  { triggers: ['ct_infant'],   testIds: ['infant_safety', 'infant_clinical', 'micro_strict'], description: '영유아용 유형 선택 시' },
+  { triggers: ['ct_haircolor'],testIds: ['haircolor_tox'],                     description: '두발 염색용 유형 선택 시' },
+  { triggers: ['ct_depi'],     testIds: ['depi_skin'],                         description: '제모 제거용 유형 선택 시' },
+  // 제형 조건
+  { triggers: ['f_aerosol'],   testIds: ['inhal'],                             description: '에어로졸제 제형 선택 시' },
+  { triggers: ['f_cream'],     testIds: ['stab_harsh'],                        description: '크림제 제형 선택 시' },
+  { triggers: ['f_lotion'],    testIds: ['stab_harsh'],                        description: '로션제 제형 선택 시' },
+  // 사용 대상 조건
+  { triggers: ['t_infant'],    testIds: ['infant_safety', 'infant_clinical', 'micro_strict'], description: '영유아 대상 선택 시' },
+  { triggers: ['t_child'],     testIds: ['child_exposure'],                    description: '어린이 대상 선택 시' },
+  { triggers: ['t_sensitive'], testIds: ['sensitive_patch'],                   description: '민감성 대상 선택 시' },
+  { triggers: ['t_condition'], testIds: ['condition_test'],                    description: '특정 질환/피부상태 대상 선택 시' },
+  // 특수 성분 조건
+  { triggers: ['i_uv'],        testIds: ['phototox', 'spf_pa'],               description: '자외선차단제 성분 포함 시' },
+  { triggers: ['i_nano'],      testIds: ['nano_char'],                         description: '나노 원료 포함 시' },
+  { triggers: ['i_new'],       testIds: ['new_tox'],                           description: '신규/미승인 원료 포함 시' },
+  { triggers: ['i_frag'],      testIds: ['fragrance_qra'],                     description: '착향제 포함 시' },
+  { triggers: ['i_aha'],       testIds: ['aha_irrit'],                         description: 'AHA/레티놀 등 활성 성분 포함 시' },
+];
+
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║   DATA ONLY 블록 끝.  아래는 절대 수정하지 마세요.                       ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     ENGINE — 이 아래는 수정 불필요
+     ═══════════════════════════════════════════════════════════════════ -->
+<style>
+:root{--navy:#1a2f4e;--blue:#2563eb;--blue-l:#dbeafe;--teal:#0d9488;--teal-l:#ccfbf1;--orange:#c2410c;--orange-l:#ffedd5;--red:#dc2626;--red-l:#fee2e2;--green:#16a34a;--green-l:#dcfce7;--gray:#374151;--gray-l:#f3f4f6;--gray-m:#9ca3af;--border:#e5e7eb;--white:#ffffff;--shadow:0 1px 3px rgba(0,0,0,.1);--shadow-lg:0 4px 16px rgba(0,0,0,.12)}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,'Segoe UI',sans-serif;font-size:14px;color:var(--gray);background:#f8fafc}
+.app{display:flex;flex-direction:column;min-height:100vh}
+.top-bar{background:var(--navy);color:white;padding:13px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+.top-bar h1{font-size:15px;font-weight:600}.top-bar .sub{font-size:11px;opacity:.6;margin-top:2px}
+.top-actions{display:flex;gap:8px}
+.main{display:flex;flex:1}
+.left-panel{width:380px;min-width:340px;background:var(--white);border-right:1px solid var(--border);overflow-y:auto;height:calc(100vh - 52px);position:sticky;top:52px}
+.right-panel{flex:1;overflow-y:auto;padding:20px}
+.sec-hdr{padding:10px 16px;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;background:var(--navy);color:rgba(255,255,255,.8)}
+.sec-body{padding:10px 16px 14px}
+.fg{margin-bottom:10px}
+.fl{font-size:12px;font-weight:600;color:var(--navy);margin-bottom:6px;line-height:1.5}
+.fl .note{font-size:10px;font-weight:400;color:var(--gray-m);display:block;margin-top:1px}
+.fl .req{color:var(--red);font-size:11px}
+.cg{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:12px;transition:all .12s;user-select:none}
+.chip:hover{border-color:var(--blue);color:var(--blue)}
+.chip.on{background:var(--blue);border-color:var(--blue);color:white}
+hr.fd{border:none;border-top:1px solid var(--border);margin:4px 0}
+.rh{background:var(--white);border-radius:10px;padding:16px 20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.rh h2{font-size:16px;font-weight:700;color:var(--navy)}.rh .meta{font-size:12px;color:var(--gray-m);margin-top:3px}
+.sc{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.scard{background:var(--gray-l);border-radius:8px;padding:12px 16px;text-align:center}
+.scard .val{font-size:22px;font-weight:700;color:var(--navy)}.scard .lbl{font-size:11px;color:var(--gray-m);margin-top:2px}
+.scard.hi{background:var(--blue-l)}.scard.hi .val{color:var(--blue)}
+.tg{background:var(--white);border-radius:10px;box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
+.tgh{padding:12px 18px;display:flex;align-items:center;justify-content:space-between}
+.tgh.base{background:var(--blue-l);border-left:4px solid var(--blue)}
+.tgh.cond{background:var(--orange-l);border-left:4px solid var(--orange)}
+.tgh.doc{background:var(--teal-l);border-left:4px solid var(--teal)}
+.tgt{font-weight:700;font-size:13px}.tgt.base{color:var(--blue)}.tgt.cond{color:var(--orange)}.tgt.doc{color:var(--teal)}
+.tgs{font-size:11px;color:#6b7280;margin-top:2px}
+.tgb{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.bb{background:var(--blue);color:white}.cb{background:var(--orange);color:white}.db{background:var(--teal);color:white}
+.ti{border-top:1px solid var(--border);padding:12px 18px;display:grid;grid-template-columns:1fr 90px;gap:12px;align-items:start}
+.ti:hover{background:#fafafa}
+.tn{font-weight:600;font-size:13px;color:var(--navy)}.tm{font-size:11px;color:var(--gray-m);margin-top:2px}
+.tr{font-size:11px;color:var(--gray);background:var(--gray-l);border-radius:6px;padding:7px 10px;margin-top:7px;line-height:1.55}
+.tr strong{color:var(--navy);display:block;margin-bottom:2px}
+.tt{font-size:11px;background:var(--orange-l);color:var(--orange);border-radius:5px;padding:3px 8px;margin-top:5px;display:inline-block}
+.tc{text-align:right}.tc .price{font-weight:700;font-size:14px;color:var(--navy)}.tc .days{font-size:11px;color:var(--gray-m);margin-top:2px}
+.es{text-align:center;padding:80px 20px;color:var(--gray-m)}.es .ico{font-size:44px;margin-bottom:14px}.es h3{font-size:15px;font-weight:600;margin-bottom:6px;color:var(--gray)}
+.btn{padding:7px 14px;border-radius:7px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s}
+.bp{background:var(--blue);color:white}.bp:hover{background:#1d4ed8}
+.bg{background:transparent;color:white;border:1px solid rgba(255,255,255,.3)}.bg:hover{background:rgba(255,255,255,.1)}
+.bs{padding:5px 10px;font-size:11px}.bdn{background:var(--red-l);color:var(--red)}.bsc{background:var(--green-l);color:var(--green)}
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;overflow-y:auto;padding:40px 20px}
+.mo.act{display:flex;align-items:flex-start;justify-content:center}
+.md{background:white;border-radius:12px;width:980px;max-width:100%;box-shadow:var(--shadow-lg)}
+.mhd{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.mhd h3{font-size:15px;font-weight:700;color:var(--navy)}
+.mbd{padding:20px;max-height:72vh;overflow-y:auto}.mft{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:16px}
+.tab{padding:8px 16px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;font-weight:500;color:var(--gray-m)}
+.tab.act{border-bottom-color:var(--blue);color:var(--blue);font-weight:600}
+.et{width:100%;border-collapse:collapse;font-size:12px}
+.et th{background:var(--gray-l);padding:7px 9px;text-align:left;font-weight:600;font-size:11px;border:1px solid var(--border)}
+.et td{padding:5px 7px;border:1px solid var(--border);vertical-align:top}
+.et tr:hover td{background:#fafafa}
+.et input,.et select,.et textarea{width:100%;padding:4px 5px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:white}
+.et textarea{resize:vertical;min-height:48px}
+.et input:focus,.et select:focus,.et textarea:focus{outline:none;border-color:var(--blue)}
+.notice{font-size:11px;color:var(--gray-m);padding:8px 10px;background:var(--gray-l);border-radius:6px;line-height:1.5}
+.psum{background:var(--navy);color:white;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;line-height:1.8}
+.psum .lbl{opacity:.55;font-size:11px}
+@media print{.top-bar,.left-panel,.top-actions{display:none}.right-panel{padding:0}.ti{break-inside:avoid}}
+</style>
+
+<div class="app">
+<div class="top-bar">
+  <div>
+    <h1>화장품 안전성 평가 시험 항목 의사결정 매트릭스</h1>
+    <div class="sub">근거 기반 | 필요 시험 자동 도출 · 비용 · 소요 기간 산출</div>
+  </div>
+  <div class="top-actions">
+    <button class="btn bg bs" onclick="openEditor()">시험 항목 편집</button>
+    <button class="btn bg bs" onclick="openCondEditor()">조건 규칙 편집</button>
+    <button class="btn bg bs" onclick="resetAll()">초기화</button>
+    <button class="btn bp bs" onclick="window.print()">출력</button>
+  </div>
+</div>
+<div class="main">
+  <div class="left-panel">
+    <div class="sec-hdr">제품 특성 입력</div>
+    <div class="sec-body" id="pform"></div>
+  </div>
+  <div class="right-panel" id="rpanel">
+    <div class="es"><div class="ico">🔬</div><h3>좌측에서 제품 특성을 선택하세요</h3><p style="font-size:13px">선택에 따라 시험 항목이 자동 도출됩니다.<br>각 항목에는 법령 근거와 비용·기간이 표시됩니다.</p></div>
+  </div>
+</div>
+</div>
+
+<!-- EDITOR: TEST ITEMS -->
+<div class="mo" id="emod">
+  <div class="md">
+    <div class="mhd"><h3>시험 항목 편집 — 이름 · 비용 · 소요일 · 근거 수정 가능</h3><button class="btn bs" onclick="closeE()" style="background:#f3f4f6">✕</button></div>
+    <div class="mbd">
+      <div class="tabs">
+        <div class="tab act" onclick="swTab('base',this)">기본 필수</div>
+        <div class="tab" onclick="swTab('cond',this)">조건부 추가</div>
+        <div class="tab" onclick="swTab('doc',this)">문서 작성</div>
+      </div>
+      <div id="ecnt"></div>
+      <div style="margin-top:10px"><button class="btn bsc bs" onclick="addRow()">+ 항목 추가</button></div>
+    </div>
+    <div class="mft"><button class="btn bs" onclick="closeE()" style="background:#f3f4f6">취소</button><button class="btn bp bs" onclick="saveE()">저장</button></div>
+  </div>
+</div>
+
+<!-- EDITOR: CONDITIONS -->
+<div class="mo" id="cmod">
+  <div class="md">
+    <div class="mhd"><h3>조건 규칙 편집 — 어떤 특성 선택 시 어떤 시험이 추가되는가</h3><button class="btn bs" onclick="closeCE()" style="background:#f3f4f6">✕</button></div>
+    <div class="mbd">
+      <div class="notice" style="margin-bottom:12px">트리거 ID = 좌측 폼 옵션의 val 값과 정확히 일치해야 합니다. 쉼표로 구분 시 AND 조건(모두 선택돼야 발동).</div>
+      <table class="et"><thead><tr><th>트리거 ID (AND 조건)</th><th>추가 시험 ID (쉼표 구분)</th><th>규칙 설명</th><th>삭제</th></tr></thead>
+      <tbody id="ctbody"></tbody></table>
+      <div style="margin-top:10px"><button class="btn bsc bs" onclick="addCRow()">+ 규칙 추가</button></div>
+    </div>
+    <div class="mft"><button class="btn bs" onclick="closeCE()" style="background:#f3f4f6">취소</button><button class="btn bp bs" onclick="saveCE()">저장</button></div>
+  </div>
+</div>
+
+<script>
+var sel={}, eTab='base';
+
+function renderForm(){
+  var f=document.getElementById('pform'); f.innerHTML='';
+  PROFILE_FIELDS.forEach(function(fld,fi){
+    var d=document.createElement('div'); d.className='fg';
+    d.innerHTML='<div class="fl">'+fld.label+(fld.req?' <span class="req">*</span>':'')+(fld.multi?' <span style="font-size:10px;color:var(--gray-m)">(복수 선택)</span>':'')+'<span class="note">'+escH(fld.note||'')+'</span></div><div class="cg" id="cg-'+fld.id+'"></div>';
+    f.appendChild(d);
+    if(fi<PROFILE_FIELDS.length-1){var hr=document.createElement('hr');hr.className='fd';f.appendChild(hr);}
+    var g=d.querySelector('#cg-'+fld.id);
+    fld.options.forEach(function(o){
+      var c=document.createElement('div'); c.className='chip'; c.textContent=o.label;
+      c.dataset.fid=fld.id; c.dataset.val=o.val;
+      c.onclick=function(){toggle(c,fld,o.val);};
+      g.appendChild(c);
+    });
+  });
+}
+
+function toggle(chip,fld,val){
+  if(!fld.multi){
+    document.querySelectorAll('[data-fid="'+fld.id+'"]').forEach(function(c){c.classList.remove('on');});
+    if(sel[fld.id]!==val){chip.classList.add('on');sel[fld.id]=val;}else{delete sel[fld.id];}
+  }else{
+    if(!sel[fld.id])sel[fld.id]=[];
+    var idx=sel[fld.id].indexOf(val);
+    if(idx>=0){sel[fld.id].splice(idx,1);chip.classList.remove('on');}
+    else{sel[fld.id].push(val);chip.classList.add('on');}
+  }
+  render();
+}
+
+function getVals(){
+  var s=new Set();
+  Object.values(sel).forEach(function(v){Array.isArray(v)?v.forEach(function(x){s.add(x);}):v&&s.add(v);});
+  return s;
+}
+
+function compute(){
+  var av=getVals(), cids=new Set(), cmeta={};
+  CONDITIONS.forEach(function(c){
+    if(c.triggers.every(function(t){return av.has(t);})){
+      c.testIds.forEach(function(tid){cids.add(tid); cmeta[tid]=(cmeta[tid]?cmeta[tid]+' / ':'')+c.description;});
+    }
+  });
+  var bids=new Set(TEST_DB.base.map(function(t){return t.id;}));
+  var cf=TEST_DB.cond.filter(function(t){return cids.has(t.id)&&!bids.has(t.id);}).map(function(t){return Object.assign({},t,{_trig:cmeta[t.id]});});
+  return{base:TEST_DB.base,cond:cf,doc:TEST_DB.doc};
+}
+
+function render(){
+  var p=document.getElementById('rpanel'), av=getVals();
+  if(av.size===0){p.innerHTML='<div class="es"><div class="ico">🔬</div><h3>좌측에서 제품 특성을 선택하세요</h3><p style="font-size:13px">선택에 따라 시험 항목이 자동 도출됩니다.</p></div>';return;}
+  var R=compute(), all=[].concat(R.base,R.cond,R.doc);
+  var cost=[].concat(R.base,R.cond).reduce(function(s,t){return s+t.price;},0);
+  var mdays=Math.max.apply(null,[].concat(R.base,R.cond).filter(function(t){return t.days>0;}).map(function(t){return t.days;}));
+  var lbls=[];
+  PROFILE_FIELDS.forEach(function(fld){
+    var v=sel[fld.id]; if(!v||(Array.isArray(v)&&!v.length))return;
+    var vs=Array.isArray(v)?v:[v];
+    var ls=vs.map(function(x){var o=fld.options.find(function(o){return o.val===x;});return o?o.label:null;}).filter(Boolean);
+    if(ls.length)lbls.push('<b>'+escH(fld.label)+':</b> '+ls.join(', '));
+  });
+  var html='<div class="psum"><div class="lbl">입력된 제품 특성</div>'+lbls.map(function(l){return '<div>'+l+'</div>';}).join('')+'</div>';
+  html+='<div class="rh"><h2>시험 항목 도출 결과</h2><div class="meta">기본 필수 '+R.base.length+'개 + 조건부 추가 '+R.cond.length+'개 + 문서 작성 '+R.doc.length+'개 = 총 '+all.length+'개</div><div class="sc"><div class="scard hi"><div class="val">'+(cost>0?cost.toLocaleString()+'만원~':'0원')+'</div><div class="lbl">예상 시험 비용 합계</div></div><div class="scard"><div class="val">'+(mdays>0?mdays+'일~':'—')+'</div><div class="lbl">최장 소요 기간 (병행 기준)</div></div><div class="scard"><div class="val">'+all.length+'개</div><div class="lbl">총 필요 항목 수</div></div></div></div>';
+  html+=grp('기본 필수 시험',R.base,'base','모든 화장품에 항상 필요한 시험. 제품 유형·제형 무관.');
+  if(R.cond.length)html+=grp('조건부 추가 시험',R.cond,'cond','이 제품의 특성에 따라 추가로 필요한 시험 항목.');
+  html+=grp('보고서 작성 (문서)',R.doc,'doc','시험 결과를 바탕으로 작성하는 안전성 평가 보고서 각 섹션.');
+  p.innerHTML=html;
+}
+
+function grp(title,tests,type,desc){
+  if(!tests.length)return'';
+  var total=tests.reduce(function(s,t){return s+t.price;},0);
+  return'<div class="tg"><div class="tgh '+type+'"><div><div class="tgt '+type+'">'+escH(title)+'</div><div class="tgs">'+escH(desc)+'</div></div><div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'+(total>0?'<span style="font-size:12px;font-weight:600">'+total.toLocaleString()+'만원~</span>':'')+'<span class="tgb '+type[0]+'b">'+tests.length+'개</span></div></div>'+tests.map(item).join('')+'</div>';
+}
+
+function item(t){
+  return'<div class="ti"><div><div class="tn">'+escH(t.name)+'</div><div class="tm">'+escH(t.lab)+' | 예상 소요: '+(t.days>0?t.days+'일':'해당 없음')+'</div>'+(t._trig?'<div class="tt">▶ 추가 조건: '+escH(t._trig)+'</div>':'')+
+  '<div class="tr"><strong>왜 필요한가</strong>'+escH(t.rationale)+'<strong style="margin-top:4px">근거 법령·가이드라인</strong>'+escH(t.legalBasis)+'</div></div>'+
+  '<div class="tc"><div class="price">'+(t.price>0?t.price.toLocaleString()+'만원':'자체 수행')+'</div><div class="days">'+(t.days>0?t.days+'일':'—')+'</div></div></div>';
+}
+
+// EDITOR
+function openEditor(){renderEC();document.getElementById('emod').classList.add('act');}
+function closeE(){document.getElementById('emod').classList.remove('act');}
+function swTab(t,el){eTab=t;document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('act');});el.classList.add('act');renderEC();}
+function renderEC(){
+  var data=TEST_DB[eTab], ic=eTab==='cond';
+  var h='<table class="et"><thead><tr><th style="width:80px">ID</th><th>항목명</th><th style="width:75px">구분</th><th style="width:65px">비용(만원)</th><th style="width:55px">소요일</th><th>왜 필요한가</th><th>근거 법령</th>'+(ic?'<th style="width:90px">트리거 ID</th>':'')+'<th style="width:45px">삭제</th></tr></thead><tbody>';
+  data.forEach(function(t,i){
+    h+='<tr><td><input value="'+escH(t.id)+'" onchange="TEST_DB[\''+eTab+'\']['+i+'].id=this.value"></td><td><input value="'+escH(t.name)+'" onchange="TEST_DB[\''+eTab+'\']['+i+'].name=this.value"></td><td><select onchange="TEST_DB[\''+eTab+'\']['+i+'].lab=this.value">'+['Wet Lab','Dry Lab','문서작성'].map(function(v){return'<option'+(t.lab===v?' selected':'')+'>'+v+'</option>';}).join('')+'</select></td><td><input type="number" value="'+t.price+'" onchange="TEST_DB[\''+eTab+'\']['+i+'].price=+this.value"></td><td><input type="number" value="'+t.days+'" onchange="TEST_DB[\''+eTab+'\']['+i+'].days=+this.value"></td><td><textarea onchange="TEST_DB[\''+eTab+'\']['+i+'].rationale=this.value">'+escH(t.rationale)+'</textarea></td><td><textarea onchange="TEST_DB[\''+eTab+'\']['+i+'].legalBasis=this.value">'+escH(t.legalBasis)+'</textarea></td>'+(ic?'<td><input value="'+escH(t.trigger||'')+'" onchange="TEST_DB[\''+eTab+'\']['+i+'].trigger=this.value" placeholder="AND 조건, 쉼표구분"></td>':'')+'<td><button class="btn bdn bs" onclick="delT(\''+eTab+'\','+i+')">삭제</button></td></tr>';
+  });
+  h+='</tbody></table>';
+  document.getElementById('ecnt').innerHTML=h;
+}
+function delT(tab,i){if(confirm('삭제?')){TEST_DB[tab].splice(i,1);renderEC();}}
+function addRow(){var ic=eTab==='cond';var o={id:'new_id',name:'새 시험',lab:'Wet Lab',price:0,days:14,rationale:'',legalBasis:''};if(ic)o.trigger='';TEST_DB[eTab].push(o);renderEC();}
+function saveE(){render();closeE();}
+
+// COND EDITOR
+function openCondEditor(){renderCE();document.getElementById('cmod').classList.add('act');}
+function closeCE(){document.getElementById('cmod').classList.remove('act');}
+function renderCE(){
+  var tb=document.getElementById('ctbody');tb.innerHTML='';
+  CONDITIONS.forEach(function(c,i){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td><input value="'+escH(c.triggers.join(','))+'" onchange="CONDITIONS['+i+'].triggers=this.value.split(\',\').map(function(s){return s.trim();}).filter(Boolean)" style="width:180px"></td><td><input value="'+escH(c.testIds.join(','))+'" onchange="CONDITIONS['+i+'].testIds=this.value.split(\',\').map(function(s){return s.trim();}).filter(Boolean)" style="width:200px"></td><td><input value="'+escH(c.description)+'" onchange="CONDITIONS['+i+'].description=this.value"></td><td><button class="btn bdn bs" onclick="delC('+i+')">삭제</button></td>';
+    tb.appendChild(tr);
+  });
+}
+function delC(i){CONDITIONS.splice(i,1);renderCE();}
+function addCRow(){CONDITIONS.push({triggers:[''],testIds:[''],description:'새 규칙'});renderCE();}
+function saveCE(){render();closeCE();}
+
+function resetAll(){sel={};document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('on');});render();}
+function escH(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+renderForm();
+</script>
+</body>
+</html>
