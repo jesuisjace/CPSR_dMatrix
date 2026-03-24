@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>화장품 안전성 평가 시험 항목 의사결정 매트릭스</title>
+<style>
+:root {
+  --navy: #1a2f4e;
+  --blue: #2563eb;
+  --blue-l: #dbeafe;
+  --teal: #0d9488;
+  --teal-l: #ccfbf1;
+  --orange: #c2410c;
+  --orange-l: #ffedd5;
+  --red: #dc2626;
+  --red-l: #fee2e2;
+  --green: #16a34a;
+  --green-l: #dcfce7;
+  --gray: #374151;
+  --gray-l: #f3f4f6;
+  --gray-m: #9ca3af;
+  --border: #e5e7eb;
+  --white: #ffffff;
+  --shadow: 0 1px 3px rgba(0,0,0,.1);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'Segoe UI', sans-serif; font-size: 14px; color: var(--gray); background: #f8fafc; }
+
+/* LAYOUT */
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+.top-bar { background: var(--navy); color: white; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+.top-bar h1 { font-size: 15px; font-weight: 600; }
+.top-bar .sub { font-size: 12px; opacity: .65; margin-top: 2px; }
+.top-actions { display: flex; gap: 8px; }
+.main { display: flex; gap: 0; flex: 1; }
+.left-panel { width: 360px; min-width: 320px; background: var(--white); border-right: 1px solid var(--border); overflow-y: auto; height: calc(100vh - 53px); position: sticky; top: 53px; }
+.right-panel { flex: 1; overflow-y: auto; padding: 20px; }
+
+/* SECTION HEADERS */
+.section-header { padding: 12px 16px; font-weight: 600; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; background: var(--gray-l); color: var(--gray); border-bottom: 1px solid var(--border); }
+.section-body { padding: 12px 16px; }
+
+/* FORM ELEMENTS */
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--navy); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.form-label .req { color: var(--red); font-size: 10px; }
+.chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); background: var(--white); cursor: pointer; font-size: 12px; transition: all .15s; user-select: none; }
+.chip:hover { border-color: var(--blue); color: var(--blue); }
+.chip.selected { background: var(--blue); border-color: var(--blue); color: white; }
+.chip.selected.teal { background: var(--teal); border-color: var(--teal); }
+.chip.selected.orange { background: var(--orange); border-color: var(--orange); }
+.chip.selected.red { background: var(--red); border-color: var(--red); }
+
+/* RESULT PANEL */
+.result-header { background: var(--white); border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+.result-header h2 { font-size: 16px; font-weight: 700; color: var(--navy); }
+.result-header .meta { font-size: 12px; color: var(--gray-m); margin-top: 4px; }
+.summary-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+.summary-card { background: var(--gray-l); border-radius: 8px; padding: 12px 16px; text-align: center; }
+.summary-card .val { font-size: 22px; font-weight: 700; color: var(--navy); }
+.summary-card .lbl { font-size: 11px; color: var(--gray-m); margin-top: 2px; }
+.summary-card.highlight { background: var(--blue-l); }
+.summary-card.highlight .val { color: var(--blue); }
+
+/* TEST GROUPS */
+.test-group { background: var(--white); border-radius: 10px; box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden; }
+.test-group-header { padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.test-group-header.base { background: var(--blue-l); border-left: 4px solid var(--blue); }
+.test-group-header.cond { background: var(--orange-l); border-left: 4px solid var(--orange); }
+.test-group-header.doc { background: var(--teal-l); border-left: 4px solid var(--teal); }
+.test-group-title { font-weight: 600; font-size: 13px; }
+.test-group-title.base { color: var(--blue); }
+.test-group-title.cond { color: var(--orange); }
+.test-group-title.doc { color: var(--teal); }
+.test-group-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+.badge-base { background: var(--blue); color: white; }
+.badge-cond { background: var(--orange); color: white; }
+.badge-doc { background: var(--teal); color: white; }
+
+/* TEST ITEM */
+.test-item { border-top: 1px solid var(--border); padding: 12px 18px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.test-item:hover { background: #fafafa; }
+.test-name { font-weight: 600; font-size: 13px; color: var(--navy); }
+.test-meta { font-size: 11px; color: var(--gray-m); margin-top: 3px; }
+.test-rationale { font-size: 11px; color: var(--gray); background: var(--gray-l); border-radius: 6px; padding: 6px 10px; margin-top: 6px; line-height: 1.5; }
+.test-rationale strong { color: var(--navy); }
+.test-trigger { font-size: 11px; background: var(--orange-l); color: var(--orange); border-radius: 6px; padding: 4px 8px; margin-top: 4px; display: inline-block; }
+.test-cost { text-align: right; white-space: nowrap; }
+.test-cost .price { font-weight: 700; font-size: 14px; color: var(--navy); }
+.test-cost .days { font-size: 11px; color: var(--gray-m); }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--gray-m); }
+.empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.empty-state p { font-size: 13px; }
+
+/* BUTTONS */
+.btn { padding: 7px 14px; border-radius: 7px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; transition: all .15s; }
+.btn-primary { background: var(--blue); color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-ghost { background: transparent; color: white; border: 1px solid rgba(255,255,255,.3); }
+.btn-ghost:hover { background: rgba(255,255,255,.1); }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+.btn-danger { background: var(--red-l); color: var(--red); }
+.btn-success { background: var(--green-l); color: var(--green); }
+
+/* EDITOR MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 500; overflow-y: auto; padding: 40px 20px; }
+.modal-overlay.active { display: flex; align-items: flex-start; justify-content: center; }
+.modal { background: white; border-radius: 12px; width: 900px; max-width: 100%; box-shadow: var(--shadow-lg); }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { font-size: 15px; font-weight: 700; color: var(--navy); }
+.modal-body { padding: 20px; max-height: 70vh; overflow-y: auto; }
+.modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+/* EDITOR TABS */
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 16px; }
+.tab { padding: 8px 16px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; font-weight: 500; color: var(--gray-m); }
+.tab.active { border-bottom-color: var(--blue); color: var(--blue); font-weight: 600; }
+
+/* EDITOR TABLE */
+.editor-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.editor-table th { background: var(--gray-l); padding: 8px 10px; text-align: left; font-weight: 600; font-size: 11px; border: 1px solid var(--border); }
+.editor-table td { padding: 6px 8px; border: 1px solid var(--border); vertical-align: top; }
+.editor-table tr:hover td { background: #fafafa; }
+.editor-table input, .editor-table select, .editor-table textarea { width: 100%; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; background: white; }
+.editor-table textarea { resize: vertical; min-height: 50px; }
+.editor-table input:focus, .editor-table select:focus, .editor-table textarea:focus { outline: none; border-color: var(--blue); }
+
+/* PRINT */
+@media print {
+  .top-bar, .left-panel, .top-actions { display: none; }
+  .right-panel { padding: 0; }
+  .test-item { break-inside: avoid; }
+}
+
+/* DIVIDER */
+.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+
+/* NOTICE */
+.notice { font-size: 11px; color: var(--gray-m); padding: 8px 10px; background: var(--gray-l); border-radius: 6px; line-height: 1.5; }
+
+/* PRODUCT SUMMARY */
+.product-summary { background: var(--navy); color: white; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; line-height: 1.8; }
+.product-summary .label { opacity: .6; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div>
+    <h1>화장품 안전성 평가 시험 항목 의사결정 매트릭스</h1>
+    <div class="sub">근거 기반 | 시험 항목 도출 · 비용 · 기간 자동 산출</div>
+  </div>
+  <div class="top-actions">
+    <button class="btn btn-ghost btn-sm" onclick="openEditor()">시험 항목 편집</button>
+    <button class="btn btn-ghost btn-sm" onclick="openCondEditor()">조건 규칙 편집</button>
+    <button class="btn btn-ghost btn-sm" onclick="resetAll()">초기화</button>
+    <button class="btn btn-primary btn-sm" onclick="window.print()">출력</button>
+  </div>
+</div>
+
+<div class="main">
+<!-- LEFT PANEL: PRODUCT PROFILE -->
+<div class="left-panel">
+  <div class="section-header">제품 특성 입력</div>
+  <div class="section-body" id="profile-form"></div>
+</div>
+
+<!-- RIGHT PANEL: RESULTS -->
+<div class="right-panel" id="results-panel">
+  <div class="empty-state">
+    <div class="icon">🔬</div>
+    <h3>좌측에서 제품 특성을 선택하세요</h3>
+    <p>선택에 따라 필요한 시험 항목이 자동으로 도출됩니다.<br>각 항목에는 법령 근거와 예상 비용·기간이 함께 표시됩니다.</p>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- EDITOR MODAL: TEST ITEMS -->
+<div class="modal-overlay" id="editor-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>시험 항목 편집 (비용 · 소요일 수정 가능)</h3>
+      <button class="btn btn-sm" onclick="closeEditor()" style="background:#f3f4f6">✕ 닫기</button>
+    </div>
+    <div class="modal-body">
+      <div class="tabs">
+        <div class="tab active" onclick="switchEditorTab('base',this)">기본 필수 시험</div>
+        <div class="tab" onclick="switchEditorTab('cond',this)">조건부 추가 시험</div>
+        <div class="tab" onclick="switchEditorTab('doc',this)">문서 작성 항목</div>
+      </div>
+      <div id="editor-content"></div>
+      <div style="margin-top:12px">
+        <button class="btn btn-success btn-sm" onclick="addTestRow()">+ 항목 추가</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="closeEditor()" style="background:#f3f4f6">취소</button>
+      <button class="btn btn-primary btn-sm" onclick="saveEditor()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDITOR MODAL: CONDITIONS -->
+<div class="modal-overlay" id="cond-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>조건 규칙 편집 (어떤 특성이 선택되면 어떤 시험이 추가되는지)</h3>
+      <button class="btn btn-sm" onclick="closeCondEditor()" style="background:#f3f4f6">✕ 닫기</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice" style="margin-bottom:12px">각 행은 "이 특성이 선택되면 이 시험이 추가된다"는 규칙입니다. 특성 ID는 좌측 프로파일 폼의 옵션 값(value)과 일치해야 합니다.</div>
+      <table class="editor-table" id="cond-table">
+        <thead><tr>
+          <th>트리거 특성 ID (쉼표 구분, AND 조건)</th>
+          <th>추가되는 시험 ID (쉼표 구분)</th>
+          <th>트리거 설명</th>
+          <th>삭제</th>
+        </tr></thead>
+        <tbody id="cond-tbody"></tbody>
+      </table>
+      <div style="margin-top:12px">
+        <button class="btn btn-success btn-sm" onclick="addCondRow()">+ 규칙 추가</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="closeCondEditor()" style="background:#f3f4f6">취소</button>
+      <button class="btn btn-primary btn-sm" onclick="saveCondEditor()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// DATA STORE (EDITABLE)
+// ─────────────────────────────────────────────
+
+// PRODUCT PROFILE FIELDS
+const PROFILE_FIELDS = [
+  { id: 'form', label: '제형', req: true, multi: false, options: [
+    { val: 'cream', label: '크림/로션' },
+    { val: 'serum', label: '세럼/에센스' },
+    { val: 'aerosol', label: '에어로졸/스프레이' },
+    { val: 'powder', label: '분말/파우더' },
+    { val: 'oil', label: '오일' },
+    { val: 'lip', label: '립 제품' },
+    { val: 'shampoo', label: '샴푸/린스' },
+    { val: 'cleanser', label: '클렌저' },
+    { val: 'wipes', label: '물휴지/시트' },
+  ]},
+  { id: 'residue', label: '잔류 특성', req: true, multi: false, options: [
+    { val: 'leaveon', label: 'Leave-on (씻어내지 않음)' },
+    { val: 'rinseoff', label: 'Rinse-off (씻어냄)' },
+  ]},
+  { id: 'site', label: '주요 사용 부위', req: true, multi: true, options: [
+    { val: 'face', label: '얼굴 (눈 제외)' },
+    { val: 'eye', label: '눈 주위' },
+    { val: 'lip', label: '입술' },
+    { val: 'body', label: '전신' },
+    { val: 'scalp', label: '두피' },
+    { val: 'hand', label: '손/발' },
+    { val: 'mucosa', label: '점막/구강' },
+  ]},
+  { id: 'target', label: '사용 대상', req: true, multi: true, options: [
+    { val: 'adult', label: '일반 성인' },
+    { val: 'infant', label: '영유아 (3세 이하)' },
+    { val: 'child', label: '어린이 (3~12세)' },
+    { val: 'sensitive', label: '민감성 피부 표방' },
+    { val: 'pregnant', label: '임산부 사용 가능 표방' },
+  ]},
+  { id: 'freq', label: '사용 빈도', req: false, multi: false, options: [
+    { val: 'once', label: '1일 1회' },
+    { val: 'twice', label: '1일 2회' },
+    { val: 'multi', label: '1일 3회 이상' },
+    { val: 'weekly', label: '주 1~3회' },
+  ]},
+  { id: 'ingr', label: '특수 성분 포함 여부', req: false, multi: true, options: [
+    { val: 'uv', label: '자외선차단제 성분' },
+    { val: 'nano', label: '나노 원료' },
+    { val: 'new_ing', label: '신규/미승인 원료' },
+    { val: 'fragrance', label: '착향제 (복합향료)' },
+    { val: 'aha_ret', label: 'AHA/레티놀 등 활성 성분' },
+    { val: 'color', label: '색소 (별표2 해당)' },
+  ]},
+  { id: 'purpose', label: '제품 목적 / 규제 대상', req: false, multi: true, options: [
+    { val: 'functional', label: '기능성화장품 심사 필요' },
+    { val: 'export_eu', label: '유럽(EU) 수출' },
+    { val: 'export_cn', label: '중국 수출' },
+    { val: 'export_us', label: '미국 수출' },
+  ]},
+];
+
+// TEST DATABASE (EDITABLE: name, lab, category, price, days, rationale, legalBasis)
+let TEST_DB = {
+  base: [
+    { id: 'stab_long', name: '장기보존시험', lab: 'Wet Lab', price: 300, days: 365, rationale: '화장품의 보관 조건에서 물리·화학적·미생물학적 안정성을 확인하고 사용기한 설정 근거를 확보한다.', legalBasis: '「화장품 안정성시험 가이드라인」(MFDS), 「화장품법」 제10조(사용기한 표시 의무)' },
+    { id: 'stab_acc', name: '가속시험', lab: 'Wet Lab', price: 200, days: 180, rationale: '단기간 내에 장기 보관 효과를 예측하여 안정성을 빠르게 확인한다. 조건: 40±2℃/75±5%RH, 6개월.', legalBasis: '「화장품 안정성시험 가이드라인」(MFDS)' },
+    { id: 'micro_limit', name: '미생물한도시험', lab: 'Wet Lab', price: 50, days: 14, rationale: '총호기성생균수, 대장균·녹농균·황색포도상구균 검출 여부 확인. 법정 허용한도 준수 여부 증명.', legalBasis: '「화장품 안전기준 등에 관한 규정」 제6조 제4항, [별표4] 유통화장품 안전관리 시험방법 11항' },
+    { id: 'pet', name: '보존력시험 (PET)', lab: 'Wet Lab', price: 80, days: 28, rationale: '다회 개봉 시 미생물 증식을 억제하는 보존 시스템의 유효성을 평가한다. 접종 후 4주 관찰.', legalBasis: '「화장품 보존력 시험법 가이드라인」(MFDS), 가이드라인(안) 2.1.3' },
+    { id: 'skin_irrit', name: '피부자극성시험 (RhE)', lab: 'Wet Lab', price: 80, days: 14, rationale: '화장품은 피부에 직접 반복 접촉하므로 자극성 없음을 확인해야 한다. 동물대체시험법 적용.', legalBasis: 'OECD TG 439 (RhE Test Method), 가이드라인(안) 2.1.8 (c)항' },
+    { id: 'sensitiz', name: '피부감작성시험 (h-CLAT)', lab: 'Wet Lab', price: 120, days: 21, rationale: '화장품에서 가장 빈번한 이상반응인 알레르기성 접촉피부염 가능성을 평가한다.', legalBasis: 'OECD TG 442E (h-CLAT), 가이드라인(안) 2.1.8 (c)항' },
+    { id: 'geno_qsar', name: '유전독성 평가 (QSAR/in silico)', lab: 'Dry Lab', price: 60, days: 14, rationale: '화장품은 동물실험 금지로 in silico 방법 우선 적용. 유전독성 우려 성분 사전 선별.', legalBasis: 'OECD TG 442C-E (대안), 「화장품법」 제15조의2(동물실험 금지), 가이드라인(안) 2.1.8 (e)항' },
+    { id: 'mos_calc', name: 'MoS 계산 (전성분)', lab: 'Dry Lab', price: 0, days: 3, rationale: 'MoS = PODsys / SED ≥ 100 충족 여부 확인. 안전성 평가의 정량적 결론. 별표2 이내 성분은 생략 가능하나 근거 기재 필수.', legalBasis: '가이드라인(안) 2.1.7, 「화장품 위해평가 가이드라인」 2-2-4, 「화장품 안전기준 등에 관한 규정」 [별표2]' },
+    { id: 'reg_check', name: '원료 규제 적합성 확인 (별표1/2/알레르기)', lab: 'Dry Lab', price: 0, days: 1, rationale: '사용 금지 원료, 사용 제한 원료 한도 초과 여부, 알레르기 유발 착향제 표시 의무 확인.', legalBasis: '「화장품 안전기준 등에 관한 규정」 [별표1] [별표2], 알레르기 유발성분 표시 규정 [별표3]' },
+    { id: 'tox_lit', name: '전성분 독성 문헌조사', lab: 'Dry Lab', price: 0, days: 5, rationale: '단회투여독성, 반복투여독성, 생식독성, 발암성 등 8개 독성 종말점에 대해 NOAEL 및 독성 프로파일 확보. MoS 계산의 PODsys 결정에 필수.', legalBasis: '가이드라인(안) 2.1.8, 「화장품 위해평가 가이드라인」 2-2-2' },
+    { id: 'container', name: '포장재 적합성 평가', lab: 'Wet Lab', price: 50, days: 30, rationale: '내용물에 의한 포장재 변화, 불순물 이행(migration) 가능성 확인. 사용기한 내 안전성 증명.', legalBasis: '가이드라인(안) 2.1.4, 「화장품 안전기준 등에 관한 규정」 제6조 제2항(프탈레이트류 등)' },
+  ],
+  cond: [
+    { id: 'eye_irrit', name: '안점막자극성시험 (BCOP/ICE)', lab: 'Wet Lab', price: 100, days: 14, rationale: '눈 주위 사용 제품은 각막 및 결막 자극 가능성을 별도로 평가해야 한다.', legalBasis: 'OECD TG 437(BCOP)/TG 438(ICE)/TG 491(STE)/TG 492(RhCE), 가이드라인(안) 2.1.8 (c)항', trigger: 'eye' },
+    { id: 'oral_exp', name: '경구 노출 시나리오 작성', lab: 'Dry Lab', price: 0, days: 1, rationale: '입술 제품은 무의식 중 일정량을 섭취할 수 있으므로 경구 노출 경로를 노출 시나리오에 포함해야 한다.', legalBasis: '가이드라인(안) 2.1.6 5), 「화장품 위해평가 가이드라인」 2-2-3 (경구 노출)', trigger: 'lip' },
+    { id: 'inhal', name: '흡입독성 평가 (SEDinh, 1-box/2-box 모델)', lab: 'Dry Lab', price: 80, days: 14, rationale: '에어로졸/스프레이는 성분이 미세입자 형태로 기도에 흡입될 수 있어 흡입 노출 경로를 별도 평가해야 한다.', legalBasis: '가이드라인(안) 2.1.6, 「화장품 위해평가 가이드라인」 붙임 7(흡입 노출평가)', trigger: 'aerosol' },
+    { id: 'phototox', name: '광독성시험 (3T3 NRU)', lab: 'Wet Lab', price: 90, days: 14, rationale: '자외선 흡수 파장이 있는 성분은 UV 조사 시 세포독성이 증가할 수 있어 광독성을 별도 평가해야 한다.', legalBasis: 'OECD TG 432 (3T3 NRU Phototoxicity Test), 가이드라인(안) 2.1.8 (g)항', trigger: 'uv' },
+    { id: 'spf_pa', name: '자외선차단 효과시험 (SPF/PA)', lab: 'Wet Lab', price: 150, days: 30, rationale: '자외선차단제 기능을 표방하는 제품은 기능성화장품으로 SPF/PA 수치를 인체 또는 기기로 측정해야 한다.', legalBasis: '「화장품법」 제4조(기능성화장품 심사), 「기능성화장품 기준 및 시험방법」', trigger: 'uv' },
+    { id: 'nano_char', name: '나노 원료 특성 분석', lab: 'Wet Lab', price: 200, days: 30, rationale: '나노 입자는 일반 원료보다 피부 침투율이 다르고 독성 경로가 다를 수 있어 별도 특성 분석이 필요하다.', legalBasis: '「화장품 안전기준 등에 관한 규정」 [별표2] 비고(나노 원료 특이사항), 가이드라인(안) 2.1.10', trigger: 'nano' },
+    { id: 'new_tox', name: '신규 원료 독성시험 풀세트', lab: 'Wet Lab', price: 500, days: 90, rationale: '기존 안전성 자료가 없는 신규 원료는 단회독성, 반복독성, 피부독성, 유전독성 등을 직접 시험으로 확인해야 한다.', legalBasis: '가이드라인(안) 2.1.8 (a)-(g)항 전체, 「화장품법」 제8조 제3항(원료 위해평가)', trigger: 'new_ing' },
+    { id: 'fragrance_qra', name: '향료 감작성 QRA (NESIL/AEL 산출)', lab: 'Dry Lab', price: 50, days: 3, rationale: '착향제에 감작성 성분이 포함될 경우 NESIL(최대무감작유도용량)과 AEL(허용노출량)을 산출하여 CEL(소비자노출량)과 비교해야 한다.', legalBasis: '「화장품 위해평가 가이드라인」 붙임 8(피부감작성 QRA), IFRA 가이드라인', trigger: 'fragrance' },
+    { id: 'infant_safety', name: '영유아 추가 안전평가 (노출 보정)', lab: 'Dry Lab', price: 0, days: 3, rationale: '영유아는 체중 대비 피부면적 비율이 성인보다 최대 2.3배 높고 대사 능력이 미숙하다. SED 계산 시 연령별 체중 보정 및 TTC 적용 가능 여부를 별도 검토해야 한다.', legalBasis: '「화장품법」 제4조의3(영유아 안전성 자료 의무), SCCS/1628/21 영유아 기준, 가이드라인(안) 2.1.6 5)', trigger: 'infant' },
+    { id: 'infant_clinical', name: '저자극성 인체적용시험 (영유아용)', lab: 'Wet Lab', price: 300, days: 60, rationale: '영유아용으로 표방하는 제품은 임상 첩포시험 등을 통해 저자극성을 입증하는 것이 권고된다.', legalBasis: '「화장품법」 제4조의3, 「영유아 또는 어린이 사용 화장품 안전성 자료의 작성·보관에 관한 규정」', trigger: 'infant' },
+    { id: 'child_exposure', name: '어린이 노출 시나리오 보정', lab: 'Dry Lab', price: 0, days: 1, rationale: '어린이는 성인과 체중이 달라 SED 계산 시 연령별 체중 보정이 필요하다. 또한 구강 접촉(손-입) 시나리오도 고려해야 한다.', legalBasis: '「화장품 위해평가 가이드라인」 2-2-3 4)항, SCCS/1628/21', trigger: 'child' },
+    { id: 'sensitive_patch', name: '저자극성 인체 첩포시험', lab: 'Wet Lab', price: 120, days: 21, rationale: '민감성 피부 대상 또는 저자극성 표방 시 실제 자극 없음을 인체시험으로 증명해야 광고·표시 실증자료로 활용 가능하다.', legalBasis: '「화장품 표시·광고 실증에 관한 규정」, 가이드라인(안) 2.1.10', trigger: 'sensitive' },
+    { id: 'stab_harsh', name: '가혹시험 (동결-해동, 광안정성)', lab: 'Wet Lab', price: 80, days: 14, rationale: '유화 크림류는 온도 충격 시 유화 불안정이 발생할 수 있고, 자외선 흡수 성분은 빛에 의한 분해 가능성이 있다.', legalBasis: '「화장품 안정성시험 가이드라인」 가혹시험 조항 (온도편차 / 광안정성)', trigger: 'cream' },
+    { id: 'eu_cpsr', name: 'EU CPSR 작성 (유럽 수출용)', lab: 'Dry Lab', price: 500, days: 30, rationale: 'EU 화장품 규정 (EC) No 1223/2009에 따라 유럽 시장 출시 전 안전성 평가자(Safety Assessor)의 CPSR 작성이 의무이다.', legalBasis: 'EU Cosmetics Regulation (EC) No 1223/2009 Article 10', trigger: 'export_eu' },
+    { id: 'cn_safety', name: '중국 안전성 평가 보고서 작성', lab: 'Dry Lab', price: 300, days: 30, rationale: '중국 수출 시 화장품 감독관리 조례(2021)에 따라 안전성 평가 보고서 제출이 필요하다.', legalBasis: '중국 화장품감독관리조례(2021), 화장품 안전평가 기술 지침(2021)', trigger: 'export_cn' },
+    { id: 'functional_test', name: '기능성화장품 효능·효과 시험', lab: 'Wet Lab', price: 300, days: 60, rationale: '기능성화장품으로 심사를 받으려면 주성분 함량 확인 및 해당 기능성 입증 시험 자료가 필요하다.', legalBasis: '「화장품법」 제4조, 화장품법 시행규칙 제9조(기능성화장품 심사)', trigger: 'functional' },
+    { id: 'aha_irrit', name: '고농도 활성 성분 추가 자극 평가', lab: 'Wet Lab', price: 80, days: 14, rationale: 'AHA, 레티놀 등 활성 성분은 고농도 사용 시 피부 자극 가능성이 일반 성분보다 높아 추가 평가가 필요하다.', legalBasis: '가이드라인(안) 2.1.8, 「화장품 안전기준 등에 관한 규정」 [별표2] 관련 성분 한도 확인', trigger: 'aha_ret' },
+  ],
+  doc: [
+    { id: 'doc_composition', name: '2.1.1 정량·정성 구성 작성', lab: '문서작성', price: 0, days: 1, rationale: '처방 전성분 목록, INCI명, CAS번호, 배합목적, 실제 성분 농도 계산 포함.', legalBasis: '가이드라인(안) 2.1.1 전항목' },
+    { id: 'doc_physico', name: '2.1.2 물리화학적 특성 및 안정성 작성', lab: '문서작성', price: 0, days: 2, rationale: '제품 규격(pH, 점도 등), 원료 물리화학적 데이터, 안정성 시험 결과 기재.', legalBasis: '가이드라인(안) 2.1.2' },
+    { id: 'doc_exposure', name: '2.1.5~2.1.7 노출 시나리오 및 MoS 보고서 작성', lab: '문서작성', price: 0, days: 3, rationale: '1일 사용량, 피부면적, SED 계산식, 각 성분별 MoS 산출 결과 표 작성.', legalBasis: '가이드라인(안) 2.1.5, 2.1.6, 2.1.7' },
+    { id: 'doc_tox', name: '2.1.8 독성 정보 기반 위해 판단 보고서 작성', lab: '문서작성', price: 0, days: 5, rationale: '각 성분별 8개 독성 종말점 데이터 수집·정리. SCCS, ECHA, IARC 등 출처 포함.', legalBasis: '가이드라인(안) 2.1.8' },
+    { id: 'doc_final', name: '안전성 평가 결론 작성 (2.2)', lab: '문서작성', price: 0, days: 2, rationale: '위해판단 종합, 주의사항 도출, 안전성 평가자 서명·자격증명 포함.', legalBasis: '가이드라인(안) 2.2' },
+  ]
+};
+
+// CONDITIONS: { triggers: [values], testIds: [ids], description }
+let CONDITIONS = [
+  { triggers: ['eye'], testIds: ['eye_irrit'], description: '눈 주위 사용 선택 시' },
+  { triggers: ['lip'], testIds: ['oral_exp'], description: '입술 사용 선택 시' },
+  { triggers: ['aerosol'], testIds: ['inhal'], description: '에어로졸/스프레이 제형 선택 시' },
+  { triggers: ['uv'], testIds: ['phototox', 'spf_pa'], description: '자외선차단제 성분 포함 시' },
+  { triggers: ['nano'], testIds: ['nano_char'], description: '나노 원료 포함 시' },
+  { triggers: ['new_ing'], testIds: ['new_tox'], description: '신규/미승인 원료 포함 시' },
+  { triggers: ['fragrance'], testIds: ['fragrance_qra'], description: '착향제 포함 시' },
+  { triggers: ['infant'], testIds: ['infant_safety', 'infant_clinical'], description: '영유아 대상 시' },
+  { triggers: ['child'], testIds: ['child_exposure'], description: '어린이 대상 시' },
+  { triggers: ['sensitive'], testIds: ['sensitive_patch'], description: '민감성 피부 표방 시' },
+  { triggers: ['cream'], testIds: ['stab_harsh'], description: '크림/로션 제형 시' },
+  { triggers: ['export_eu'], testIds: ['eu_cpsr'], description: '유럽 수출 시' },
+  { triggers: ['export_cn'], testIds: ['cn_safety'], description: '중국 수출 시' },
+  { triggers: ['functional'], testIds: ['functional_test'], description: '기능성화장품 심사 필요 시' },
+  { triggers: ['aha_ret'], testIds: ['aha_irrit'], description: 'AHA/레티놀 등 활성 성분 포함 시' },
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let selectedValues = {};
+let editorTab = 'base';
+
+// ─────────────────────────────────────────────
+// RENDER PROFILE FORM
+// ─────────────────────────────────────────────
+function renderForm() {
+  const form = document.getElementById('profile-form');
+  form.innerHTML = '';
+  PROFILE_FIELDS.forEach(field => {
+    const div = document.createElement('div');
+    div.className = 'form-group';
+    div.innerHTML = `<div class="form-label">${field.label}${field.multi ? ' <span style="font-size:10px;color:var(--gray-m)">(복수 선택 가능)</span>' : ''}${field.req ? ' <span class="req">*필수</span>' : ''}</div><div class="chip-group" id="chips-${field.id}"></div>`;
+    form.appendChild(div);
+    form.appendChild(document.createElement('hr'));
+    const group = div.querySelector(`#chips-${field.id}`);
+    field.options.forEach(opt => {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.textContent = opt.label;
+      chip.dataset.field = field.id;
+      chip.dataset.val = opt.val;
+      chip.onclick = () => toggleChip(chip, field, opt.val);
+      group.appendChild(chip);
+    });
+  });
+}
+
+function toggleChip(chip, field, val) {
+  if (!field.multi) {
+    document.querySelectorAll(`[data-field="${field.id}"]`).forEach(c => c.classList.remove('selected'));
+    if (!selectedValues[field.id] || selectedValues[field.id] !== val) {
+      chip.classList.add('selected');
+      selectedValues[field.id] = val;
+    } else {
+      delete selectedValues[field.id];
+    }
+  } else {
+    if (!selectedValues[field.id]) selectedValues[field.id] = [];
+    const idx = selectedValues[field.id].indexOf(val);
+    if (idx >= 0) {
+      selectedValues[field.id].splice(idx, 1);
+      chip.classList.remove('selected');
+    } else {
+      selectedValues[field.id].push(val);
+      chip.classList.add('selected');
+    }
+  }
+  renderResults();
+}
+
+// ─────────────────────────────────────────────
+// COMPUTE ACTIVE TESTS
+// ─────────────────────────────────────────────
+function getActiveValues() {
+  const vals = new Set();
+  Object.values(selectedValues).forEach(v => {
+    if (Array.isArray(v)) v.forEach(x => vals.add(x));
+    else if (v) vals.add(v);
+  });
+  return vals;
+}
+
+function computeTests() {
+  const activeVals = getActiveValues();
+  const condTestIds = new Set();
+  const condMeta = {}; // testId -> trigger description
+  CONDITIONS.forEach(cond => {
+    if (cond.triggers.every(t => activeVals.has(t))) {
+      cond.testIds.forEach(tid => {
+        condTestIds.add(tid);
+        condMeta[tid] = cond.description;
+      });
+    }
+  });
+  const baseFinal = TEST_DB.base;
+  const condFinal = TEST_DB.cond.filter(t => condTestIds.has(t.id)).map(t => ({ ...t, _trigger: condMeta[t.id] }));
+  const docFinal = TEST_DB.doc;
+  return { base: baseFinal, cond: condFinal, doc: docFinal };
+}
+
+// ─────────────────────────────────────────────
+// RENDER RESULTS
+// ─────────────────────────────────────────────
+function renderResults() {
+  const panel = document.getElementById('results-panel');
+  const activeVals = getActiveValues();
+  if (activeVals.size === 0) {
+    panel.innerHTML = `<div class="empty-state"><div class="icon">🔬</div><h3>좌측에서 제품 특성을 선택하세요</h3><p>선택에 따라 필요한 시험 항목이 자동으로 도출됩니다.<br>각 항목에는 법령 근거와 예상 비용·기간이 함께 표시됩니다.</p></div>`;
+    return;
+  }
+  const { base, cond, doc } = computeTests();
+  const allTests = [...base, ...cond, ...doc];
+  const totalCost = allTests.reduce((s, t) => s + t.price, 0);
+  const maxDays = Math.max(...allTests.filter(t => t.days > 0).map(t => t.days));
+  const selectedLabels = [];
+  PROFILE_FIELDS.forEach(f => {
+    const v = selectedValues[f.id];
+    if (!v || (Array.isArray(v) && v.length === 0)) return;
+    const vals = Array.isArray(v) ? v : [v];
+    const labels = vals.map(x => f.options.find(o => o.val === x)?.label).filter(Boolean);
+    if (labels.length) selectedLabels.push(`${f.label}: ${labels.join(', ')}`);
+  });
+
+  let html = `
+    <div class="product-summary">
+      <div class="label">입력된 제품 특성 요약</div>
+      ${selectedLabels.map(l => `<div>${l}</div>`).join('')}
+    </div>
+    <div class="result-header">
+      <h2>시험 항목 도출 결과</h2>
+      <div class="meta">기본 필수 ${base.length}개 + 조건부 추가 ${cond.length}개 + 문서 작성 ${doc.length}개 = 총 ${allTests.length}개</div>
+      <div class="summary-cards">
+        <div class="summary-card highlight">
+          <div class="val">${totalCost > 0 ? totalCost.toLocaleString() + '만원~' : '0원'}</div>
+          <div class="lbl">예상 총 비용 (시험비 기준)</div>
+        </div>
+        <div class="summary-card">
+          <div class="val">${maxDays}일~</div>
+          <div class="lbl">최장 소요 기간 (병행 시)</div>
+        </div>
+        <div class="summary-card">
+          <div class="val">${allTests.length}개</div>
+          <div class="lbl">필요 항목 (기본+추가+문서)</div>
+        </div>
+      </div>
+    </div>`;
+
+  html += renderGroup('기본 필수 시험', base, 'base', '모든 화장품에 필수. 제품 유형 무관하게 항상 수행해야 함.');
+  if (cond.length > 0) html += renderGroup('조건부 추가 시험', cond, 'cond', '이 제품의 특성에 따라 추가로 필요한 시험 항목.');
+  html += renderGroup('보고서 작성 항목 (문서)', doc, 'doc', '안전성 평가 보고서 각 섹션 작성. 시험 결과를 바탕으로 작성.');
+
+  panel.innerHTML = html;
+}
+
+function renderGroup(title, tests, type, desc) {
+  if (tests.length === 0) return '';
+  const totalCost = tests.reduce((s, t) => s + t.price, 0);
+  return `
+    <div class="test-group">
+      <div class="test-group-header ${type}">
+        <div>
+          <div class="test-group-title ${type}">${title}</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">${desc}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;font-weight:600">${totalCost > 0 ? totalCost.toLocaleString() + '만원~' : ''}</span>
+          <span class="test-group-badge badge-${type}">${tests.length}개</span>
+        </div>
+      </div>
+      ${tests.map(t => renderTestItem(t, type)).join('')}
+    </div>`;
+}
+
+function renderTestItem(t, type) {
+  const priceStr = t.price > 0 ? `${t.price.toLocaleString()}만원` : '자체 수행';
+  return `
+    <div class="test-item">
+      <div>
+        <div class="test-name">${t.name}</div>
+        <div class="test-meta">${t.lab} | 예상 ${t.days > 0 ? t.days + '일' : '해당 없음'}</div>
+        ${t._trigger ? `<div class="test-trigger">▶ 추가 조건: ${t._trigger}</div>` : ''}
+        <div class="test-rationale">
+          <strong>왜 필요한가:</strong> ${t.rationale}<br>
+          <strong>근거:</strong> ${t.legalBasis}
+        </div>
+      </div>
+      <div class="test-cost">
+        <div class="price">${priceStr}</div>
+        <div class="days">${t.days > 0 ? t.days + '일' : '—'}</div>
+      </div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────────
+// EDITOR: TEST ITEMS
+// ─────────────────────────────────────────────
+function openEditor() {
+  renderEditorContent();
+  document.getElementById('editor-modal').classList.add('active');
+}
+function closeEditor() {
+  document.getElementById('editor-modal').classList.remove('active');
+}
+function switchEditorTab(tab, el) {
+  editorTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderEditorContent();
+}
+function renderEditorContent() {
+  const data = TEST_DB[editorTab];
+  const isCond = editorTab === 'cond';
+  let html = `<table class="editor-table"><thead><tr>
+    <th>ID</th><th>항목명</th><th>구분</th><th>비용(만원)</th><th>소요일</th><th>왜 필요한가</th><th>법령 근거</th>${isCond ? '<th>트리거 ID</th>' : ''}<th>삭제</th>
+  </tr></thead><tbody>`;
+  data.forEach((t, i) => {
+    html += `<tr>
+      <td><input value="${t.id}" onchange="TEST_DB['${editorTab}'][${i}].id=this.value" style="width:80px"></td>
+      <td><input value="${escHtml(t.name)}" onchange="TEST_DB['${editorTab}'][${i}].name=this.value"></td>
+      <td><select onchange="TEST_DB['${editorTab}'][${i}].lab=this.value">
+        ${['Wet Lab','Dry Lab','문서작성'].map(v => `<option${t.lab===v?' selected':''}>${v}</option>`).join('')}
+      </select></td>
+      <td><input type="number" value="${t.price}" onchange="TEST_DB['${editorTab}'][${i}].price=+this.value" style="width:70px"></td>
+      <td><input type="number" value="${t.days}" onchange="TEST_DB['${editorTab}'][${i}].days=+this.value" style="width:60px"></td>
+      <td><textarea onchange="TEST_DB['${editorTab}'][${i}].rationale=this.value">${escHtml(t.rationale)}</textarea></td>
+      <td><textarea onchange="TEST_DB['${editorTab}'][${i}].legalBasis=this.value">${escHtml(t.legalBasis)}</textarea></td>
+      ${isCond ? `<td><input value="${t.trigger||''}" onchange="TEST_DB['${editorTab}'][${i}].trigger=this.value" style="width:80px"></td>` : ''}
+      <td><button class="btn btn-danger btn-sm" onclick="deleteTest('${editorTab}',${i})">삭제</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('editor-content').innerHTML = html;
+}
+function deleteTest(tab, i) {
+  if (confirm('삭제하시겠습니까?')) { TEST_DB[tab].splice(i, 1); renderEditorContent(); }
+}
+function addTestRow() {
+  const isCond = editorTab === 'cond';
+  const newItem = { id: 'new_id', name: '새 시험', lab: 'Wet Lab', price: 0, days: 14, rationale: '', legalBasis: '' };
+  if (isCond) newItem.trigger = '';
+  TEST_DB[editorTab].push(newItem);
+  renderEditorContent();
+}
+function saveEditor() {
+  renderResults();
+  closeEditor();
+}
+
+// ─────────────────────────────────────────────
+// EDITOR: CONDITIONS
+// ─────────────────────────────────────────────
+function openCondEditor() {
+  renderCondContent();
+  document.getElementById('cond-modal').classList.add('active');
+}
+function closeCondEditor() {
+  document.getElementById('cond-modal').classList.remove('active');
+}
+function renderCondContent() {
+  const tbody = document.getElementById('cond-tbody');
+  tbody.innerHTML = '';
+  CONDITIONS.forEach((cond, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input value="${cond.triggers.join(',')}" onchange="CONDITIONS[${i}].triggers=this.value.split(',').map(s=>s.trim()).filter(Boolean)" style="width:200px"></td>
+      <td><input value="${cond.testIds.join(',')}" onchange="CONDITIONS[${i}].testIds=this.value.split(',').map(s=>s.trim()).filter(Boolean)" style="width:200px"></td>
+      <td><input value="${escHtml(cond.description)}" onchange="CONDITIONS[${i}].description=this.value"></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteCondRow(${i})">삭제</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+function deleteCondRow(i) {
+  CONDITIONS.splice(i, 1);
+  renderCondContent();
+}
+function addCondRow() {
+  CONDITIONS.push({ triggers: [''], testIds: [''], description: '새 규칙' });
+  renderCondContent();
+}
+function saveCondEditor() {
+  renderResults();
+  closeCondEditor();
+}
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function resetAll() {
+  selectedValues = {};
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  renderResults();
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+renderForm();
+</script>
+</body>
+</html>
